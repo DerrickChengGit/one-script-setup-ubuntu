@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=FreeFileSync
+GenericName=Folder Comparison and Synchronization
+Exec=/home/derrick/tools/exec/FreeFileSync_bin/FreeFileSync %F
+Icon=/home/derrick/tools/exec/FreeFileSync_bin/Resources/FreeFileSync.png
+NoDisplay=false
+Terminal=false
+Categories=Utility;FileTools;
+StartupNotify=true
+Name[zh_CN]=FreeFileSync

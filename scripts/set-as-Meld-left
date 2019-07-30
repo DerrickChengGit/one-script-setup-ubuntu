@@ -1,0 +1,13 @@
+#!/bin/bash
+
+compareTool="meld"
+
+if [ $# -eq 1 ]; then
+	file1="$1"
+	echo $1
+	echo -e "${compareTool} -n ${file1} \c"> ~/.startcompare
+else
+	echo "no file selected"
+fi
+
+

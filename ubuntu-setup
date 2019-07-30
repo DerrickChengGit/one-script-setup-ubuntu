@@ -1,0 +1,520 @@
+#!/bin/bash
+
+# author derrick.cheng
+# e-mail changer15309@126.com
+# note: verified with ubuntu18.04
+
+
+CURR_PATH=$PWD
+EXEC_PATH=$CURR_PATH/exec
+APPS_PATH=$CURR_PATH/apps
+SCRIPTS_PATH=$CURR_PATH/scripts
+VIM_CONF=$HOME/.vimrc
+ZSH_CONF=$HOME/.zshrc
+INPUT_CONF=$HOME/.xprofile
+
+JDK_PATH=$EXEC_PATH/jdk_bin
+ECLIPSE_PATH=$EXEC_PATH/eclipse_bin
+FREEFILESYNC_PATH=$EXEC_PATH/freeFileSync_bin
+
+OH_MY_ZSH_PATH=$HOME/.oh-my-zsh
+
+WIFI_CONF=/etc/modprobe.d/ideapad.conf
+NOUVEAU_CONF=/etc/modprobe.d/nouveau.conf
+RABBITVCS_PATH=$APPS_PATH/rabbitvcs
+DEEPIN_WINE_PATH=$APPS_PATH/deepin-wine-for-ubuntu
+DEEPIN_APPS_REPO=http://mirrors.aliyun.com/deepin/pool/non-free/d
+
+NAUTILUS_SCRIPTS_PATH=$HOME/.local/share/nautilus/scripts
+SCRIPT_CMP_TO_LEFT=$SCRIPTS_PATH/compare-to-left
+SCRIPT_SET_AS_LEFT=$SCRIPTS_PATH/set-as-Meld-left
+
+
+WORK_DIR=$CURR_PATH
+
+function app_conf_ref()
+{
+	if [ $# -ne 2 ]; then
+		echo " Usage: app_conf_ref [提示信息] [参考信息]"
+		exit 1
+	fi
+	echo -e $1
+	echo -e $2
+	while true; do
+		echo -e " [Y/n] 设置完成 [C/c] 无需配置，Y/c) \c"
+		read answer
+		ans=$(echo $answer | tr [a-z] [A-Z])
+		if [ -z "$ans" -o "$ans" == "Y" ]; then
+			echo -e " 完成\n"
+			break
+		elif [ "$ans" == "C" ]; then
+			echo -e " 跳过"
+			break;
+		fi
+	done
+}
+
+function install_app()
+{
+	if [ $# -eq 0 ]; then
+		echo " 缺少应用名称"
+		return 1
+	fi
+	echo -e " 安装 $1 ..."
+	sudo apt -y install $1
+	sudo apt -y -f install
+
+	echo -e " 完成\n"
+}
+
+function install_app_aptitude()
+{
+	if [ $# -eq 0 ]; then
+		echo " 缺少应用名称"
+		return 1
+	fi
+	echo -e " 安装 $1 ..."
+	sudo aptitude -y install $1
+	sudo aptitude -y -f install
+
+	echo -e " 完成\n"
+}
+
+function install_app_dpkg()
+{
+	if [ $# -eq 0 ]; then
+		echo " 缺少应用名称"
+		return 1
+	fi
+	echo " 安装 $1 ..."
+	sudo dpkg -i $APPS_PATH/$1
+	sudo aptitude -y -f install
+
+	echo -e " 完成\n"
+}
+
+function install_app_tar()
+{
+	echo " 安装 $1 ..."
+	echo " 删除旧包 ..."
+	rm -rf $EXEC_PATH/$1*
+	echo " 解压压缩包 ..."
+	tar xf $APPS_PATH/$1*.tar.gz -C $EXEC_PATH
+	mv -f $EXEC_PATH/$1* $EXEC_PATH/$1_bin
+
+	echo " 拷贝桌面图标 ..."
+	sudo chmod 777 $SCRIPTS_PATH/$1*
+ 	cp $SCRIPTS_PATH/$1* ~/Desktop/
+
+	echo -e " 完成\n"
+}
+
+function install_jdk()
+{
+	echo " 安装 jdk ..."
+	echo " 删除旧包 ..."
+	rm -rf $JDK_PATH
+
+	echo " 解压压缩包 ..."
+	tar xf $APPS_PATH/jdk*.tar.gz -C $EXEC_PATH
+	mv -f $EXEC_PATH/jdk* $JDK_PATH
+
+	echo " 配置jdk ..."
+	sudo update-alternatives --install /usr/bin/java java $JDK_PATH/bin/java 300
+	sudo update-alternatives --install /usr/bin/javac javac $JDK_PATH/bin/javac 300
+	sudo update-alternatives --install /usr/bin/jar jar $JDK_PATH/bin/jar 300
+	sudo update-alternatives --install /usr/bin/javah javah $JDK_PATH/bin/javah 300
+	sudo update-alternatives --install /usr/bin/javap javap $JDK_PATH/bin/javap 300
+
+	echo -e " 完成\n"
+}
+
+function install_vim()
+{
+	install_app_aptitude vim
+	echo -e " 配置vim ..."
+	str=$(cat $VIM_CONF | grep "autoindent")
+	if [ -z "$str" ]; then
+		if [ ! -f "$VIM_CONF" ]; then
+			echo " 创建配置文件 ..."
+			sudo touch $VIM_CONF#
+		else
+			echo " 配置文件已存在"
+		fi
+		echo " 写入配置数据  $VIM_CONF ..."
+		echo -e "
+set number
+set cursorline
+set ruler
+set shiftwidth=4
+set softtabstop=4
+set tabstop=4
+set nobackup
+set autochdir
+set autoindent">> $VIM_CONF
+
+	else
+		echo " 配置文件无需更新"
+	fi
+
+	source $VIM_CONF
+
+	echo -e " 完成\n"
+}
+
+function install_app_wget_deb()
+{
+	if [ $# -ne 2 ]; then
+		echo " Usage: install_app_wget_deb [软件名] [下载链接]"
+		exit 1
+	fi
+	echo " 安装 $1 ..."
+	if [ ! -f $APPS_PATH/$1.deb ]; then
+		echo " 下载deb包 ..."
+		wget $2 -O $APPS_PATH/$1.deb
+	else
+		echo " 安装包已存在"
+	fi
+
+	echo " 安装deb包 ..."
+	sudo dpkg -i $APPS_PATH/$1.deb;
+	sudo aptitude -y -f install
+
+	echo -e " 完成\n"
+}
+
+function install_deepin_wine()
+{
+	echo " 安装 deepin_wine ..."
+	if [ -d $DEEPIN_WINE_PATH ]; then
+		echo " 目录已存在, 删除 ..."
+		sudo rm -rf $DEEPIN_WINE_PATH
+	fi
+	sudo mkdir $DEEPIN_WINE_PATH
+	
+	echo " 克隆源码 ..."
+	git clone https://gitee.com/wszqkzqk/deepin-wine-for-ubuntu.git $DEEPIN_WINE_PATH/
+
+	echo " 开始安装 ..."
+	cd $DEEPIN_WINE_PATH
+	. install.sh
+	cd $WORK_DIR
+	echo -e " 完成\n"
+}
+
+function install_app_git_sh()
+{
+	if [ $# -ne 2 ]; then
+		echo " Usage: install_app_git_sh [软件名] [git地址]"
+		exit 1
+	fi
+
+	echo " 安装 $1 ..."
+	if [ -d $APPS_PATH/$1 ]; then
+		echo " 目录已存在, 删除 ..."
+		sudo rm -rf $APPS_PATH/$1
+	fi
+	mkdir $APPS_PATH/$1
+
+	echo " 克隆源码 ..."
+	git clone $2 $APPS_PATH/$1
+
+	cd $APPS_PATH/$1
+	sudo . install.sh
+	cd $WORK_DIR
+	echo -e " 完成\n"
+}
+
+function install_app_ppa()
+{
+	if [ $# -ne 2 ]; then
+		echo " Usage: install_app_ppa [软件名] [PPA]"
+		exit 1
+	fi
+	echo " 安装 $1 ..."
+	echo " 添加源 ..."
+	sudo add-apt-repository -y $2
+	echo " 更新软件列表(18.04) ..."
+	sudo aptitude -y update
+
+	echo " 开始安装 ..."
+	sudo aptitude -y install $1
+	sudo aptitude -y -f install
+
+	echo -e " 完成\n"
+
+}
+
+function install_wps()
+{
+	install_app_wget_deb wps-2019 \
+	http://kdl.cc.ksosoft.com/wps-community/download/8722/wps-office_11.1.0.8722_amd64.deb
+
+	echo " 更新字体 ..."
+	sudo unzip -o $APPS_PATH/wps_symbol_fonts.zip -d /usr/share/fonts/wps-office
+
+	echo " 生成字体索引 ..."
+	sudo mkfontscale
+	sudo mkfontdir
+	echo " 更新字体缓存 ..."
+ 	sudo fc-cache
+
+	echo " 卸载 libreoffice ..."
+	sudo aptitude -y remove libreoffice-common
+
+	echo -e " 完成\n"
+}
+
+function install_zsh()
+{
+	install_app_aptitude zsh
+
+	echo " 修改默认shell为 zsh ..."
+	chsh -s /bin/zsh
+	echo -e " 完成\n"
+
+	echo " 安装 oh-my-zsh ..."
+	if [ ! -d $OH_MY_ZSH_PATH ]; then
+		sh -c "$(curl -fsSL https://raw.github.com/robbyrussell/oh-my-zsh/master/tools/install.sh)"
+	else
+		echo " oh-my-zsh 已存在"
+	fi
+	echo -e " 完成\n"
+
+	install_app_aptitude autojump
+
+	echo " 安装 autosuggestions ..."
+	if [ ! -d ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-autosuggestions ]; then
+		git clone git://github.com/zsh-users/zsh-autosuggestions \
+			${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-autosuggestions
+	else
+		echo " autosuggestions 已存在"
+	fi
+	echo -e " 完成\n"
+
+	echo " 安装 highlighting ..."
+	if [ ! -d ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-syntax-highlighting ]; then
+		git clone git://github.com/zsh-users/zsh-syntax-highlighting \
+			${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-syntax-highlighting
+	else
+		echo " highlighting 已存在"
+	fi
+	echo -e " 完成\n"
+
+	str=$(cat $ZSH_CONF | grep "/usr/share/autojump/autojump.sh")
+	if [ -z "$str" ]; then
+		if [ ! -f "$ZSH_CONF" ]; then
+			echo " 创建配置文件 ..."
+			sudo touch $ZSH_CONF#
+		else
+			echo " 配置文件已存在"
+		fi
+		echo " 写入配置数据  $ZSH_CONF ..."
+		echo -e "
+ZSH_THEME=\"ys\"
+
+plugins=(
+git
+autojump
+zsh-syntax-highlighting
+zsh-autosuggestions
+)
+
+. /usr/share/autojump/autojump.sh
+source \$ZSH_CUSTOM/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+source \$ZSH_CUSTOM/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh
+">> $ZSH_CONF
+
+	else
+		echo " 配置文件无需更新"
+	fi
+
+	#source $ZSH_CONF
+
+	echo -e " 完成\n"
+}
+
+function install_fcitx()
+{
+	install_app_aptitude fcitx-bin
+	install_app_aptitude fcitx-table
+
+#	str=$(cat $INPUT_CONF | grep "fcitx")
+#	if [ -z "$str" ]; then
+#		if [ ! -f "$INPUT_CONF" ]; then
+#			echo " 创建配置文件 ..."
+#			sudo touch $INPUT_CONF#
+#		else
+#			echo " 配置文件已存在"
+#		fi
+#		echo " 写入配置数据  $INPUT_CONF ..."
+#		echo -e "
+#export GTK_IM_MODULE=fcitx
+#export QT_IM_MODULE=fcitx
+#export XMODIFIERS=\"@im=fcitx\" ">> $INPUT_CONF
+
+#	else
+#		echo " 配置文件无需更新"
+#	fi
+
+#	source $INPUT_CONF
+
+	echo -e " 完成\n"
+}
+
+if [ $UID -eq 0 ]; then
+	echo "avoid running this script as superuser, exit..."
+	exit 1
+fi
+
+echo -e " 开始配置ubuntu(18.04)"
+mkdir -p $EXEC_PATH
+
+app_conf_ref \
+" 设置软件源(18.04) ..." \
+"\t参考: 在“软件和更新”选择合适的服务器，不建议直接修改source.list"
+
+echo -e " 更新软件列表(18.04) ..."
+sudo apt -y update
+echo -e " 完成\n"
+
+echo -e " 安装常用应用\n"
+install_app aptitude
+install_app git
+install_fcitx
+install_app_wget_deb sogou-input \
+http://cdn2.ime.sogou.com/dl/index/1524572264/sogoupinyin_2.2.0.0108_amd64.deb?st=KwhoAXyvHZ-GjWqwBjSFRA&e=1563262705&fn=sogoupinyin_2.2.0.0108_amd64.deb
+install_app_aptitude curl
+install_app_aptitude mtd-utils
+install_app_aptitude net-tools
+install_app_aptitude htop
+install_app_aptitude iotop
+install_app_aptitude minicom
+install_app_wget_deb google-chrome \
+https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+install_app_wget_deb baidunetdisk \
+http://issuecdn.baidupcs.com/issue/netdisk/LinuxGuanjia/baidunetdisk_linux_2.0.1.deb
+
+install_wps
+install_zsh
+install_app_git_sh ANGRYsearch \
+https://github.com/DoTheEvo/ANGRYsearch.git
+
+install_app_git_sh deepin-wine 
+https://gitee.com/wszqkzqk/deepin-wine-for-ubuntu.git
+
+install_vim
+install_jdk
+install_app_tar FreeFileSync
+install_app_tar eclipse
+install_deepin_wine
+install_app_wget_deb deepin-wechat \
+$DEEPIN_APPS_REPO/deepin.com.wechat/deepin.com.wechat_2.6.2.31deepin0_i386.deb
+install_app_wget_deb deepin-thunderspeed \
+$DEEPIN_APPS_REPO/deepin.com.thunderspeed/deepin.com.thunderspeed_7.10.35.366deepin18_i386.deb
+
+install_app_wget_deb teamviewer \
+https://download.teamviewer.com/download/linux/teamviewer_amd64.deb
+
+echo -e " 安装生产力应用\n"
+
+install_app_aptitude make
+install_app_aptitude autoconf 
+install_app_aptitude automake 
+install_app_aptitude libtool
+install_app_aptitude build-essential 
+install_app_aptitude libncurses5 
+install_app_aptitude libncurses5-dev 
+install_app_aptitude device-tree-compiler
+install_app_aptitude liblz4-tool
+install_app_aptitude u-boot-tools
+install_app_aptitude teamviewer
+install_app_aptitude meld
+install_app_wget_deb cramfsprogs \
+http://launchpadlibrarian.net/251826685/cramfsprogs_1.1-6ubuntu1_amd64.deb
+install_app_wget_deb vscode \
+https://go.microsoft.com/fwlink/?LinkID=760868
+# ubuntu18.04 不用nautilus3
+install_app_ppa rabbitvcs-nautilus \
+ppa:rabbitvcs/ppa
+
+
+app_conf_ref " 启用中文输入法(18.04) ..." \
+"\t参考: https://blog.csdn.net/mint_ying/article/details/80267005"
+
+echo -e " 修复联想电脑wifi不能开启问题(18.04) ..."
+echo -e "\t参考: https://www.cnblogs.com/carious/p/9580344.html"
+while true; do
+	echo -e " [Y/y] 继续 [N/n] 无需配置，Y/n) \c"
+	read answer
+	ans=$(echo $answer | tr [a-z] [A-Z])
+	if [ -z "$ans" -o "$ans" == "Y" ]; then
+
+		if [ -f "$WIFI_CONF" ]; then
+			echo " 删除配置文件 ..."
+			sudo rm -f $WIFI_CONF
+		fi
+		echo " 创建配置文件 ..."
+		sudo touch $WIFI_CONF
+		sudo chmod 777 $WIFI_CONF
+		echo " 写入配置数据  $WIFI_CONF ..."
+		echo -e "blacklist ideapad_laptop">> $WIFI_CONF
+		modprobe -r ideapad_laptop
+		break
+	elif [ "$ans" == "C" ]; then
+		echo -e " 跳过"
+		break;
+	fi
+done
+echo -e " 完成\n"
+
+echo -e " 修复联想电脑桌面卡死，无法关机问题：禁用Nouveau(18.04) ..."
+echo -e "\t参考: https://blog.csdn.net/muyuxiaoxiang/article/details/80502703"
+while true; do
+	echo -e " [Y/y] 继续 [N/n] 无需配置，Y/n) \c"
+	read answer
+	ans=$(echo $answer | tr [a-z] [A-Z])
+	if [ -z "$ans" -o "$ans" == "Y" ]; then
+
+		if [ -f "$NOUVEAU_CONF" ]; then
+			echo " 删除配置文件 ..."
+			sudo rm -f $NOUVEAU_CONF
+		fi
+		echo " 创建配置文件 ..."
+		sudo touch $NOUVEAU_CONF
+		sudo chmod 777 $NOUVEAU_CONF
+		echo " 写入配置数据  $NOUVEAU_CONF ..."
+		echo -e "
+blacklist nouveau
+blacklist lbm-nouveau
+options nouveau modeset=0
+alias nouveau off
+alias lbm-nouveau off">> $NOUVEAU_CONF
+
+		echo options nouveau modeset=0 | sudo tee -a /etc/modprobe.d/nouveau-kms.conf
+		sudo update-initramfs -u
+
+		break
+	elif [ "$ans" == "C" ]; then
+		echo -e " 跳过"
+		break;
+	fi
+done
+echo -e " 完成\n"
+
+app_conf_ref " 修复联想电脑桌面卡死，无法关机问题：更换显卡闭源驱动(18.04) ..." \
+"\t参考: https://blog.csdn.net/muyuxiaoxiang/article/details/80502703"
+
+echo " 右键添加比较命令 ..."
+cp -f $SCRIPT_CMP_TO_LEFT $SCRIPT_SET_AS_LEFT $NAUTILUS_SCRIPTS_PATH
+echo -e " 完成\n"
+
+echo " 右键添加新建文本 ..."
+sudo touch $HOME/Templates/文本文档.txt
+echo -e " 完成\n"
+
+echo " 重启 nautilus ..."
+nautilus -q
+nohup nautilus > /dev/null &
+echo -e " 完成\n"
+

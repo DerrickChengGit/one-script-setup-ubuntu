@@ -1,0 +1,11 @@
+[Desktop Entry]
+Encoding=UTF-8
+Name=Eclipse
+Comment=Eclipse
+Exec=/home/derrick/tools/exec/eclipse_bin/eclipse
+Icon=/home/derrick/tools/exec/eclipse_bin/icon.xpm
+Terminal=false
+StartupNotify=true
+Type=Application
+Categories=Application;Development;
+Name[zh_CN]=Eclipse

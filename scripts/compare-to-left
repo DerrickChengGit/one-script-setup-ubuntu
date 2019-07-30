@@ -1,0 +1,10 @@
+#!/bin/bash
+
+if [ $# -eq 1 ]; then
+    file2="$1"
+    echo $file2 >> ~/.startcompare
+fi
+
+chmod +x ~/.startcompare
+exec ~/.startcompare
+
