@@ -390,6 +390,8 @@ install_app_aptitude net-tools
 install_app_aptitude htop
 install_app_aptitude iotop
 install_app_aptitude minicom
+install_app_aptitude rdesktop
+# rdesktop -f -g 1280X720 -a 16 192.168.1.244 -u administrator -p dev_server
 install_app_wget_deb google-chrome \
 https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
 install_app_wget_deb baidunetdisk \
