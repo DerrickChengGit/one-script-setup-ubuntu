@@ -9,5 +9,3 @@ if [ $# -eq 1 ]; then
 else
 	echo "no file selected"
 fi
-
-
